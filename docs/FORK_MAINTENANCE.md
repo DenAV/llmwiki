@@ -26,17 +26,21 @@ workflow and contains no consumer-project details.
 
 ## Local Verification
 
-Local checks must not execute repository lifecycle scripts, builds, tests, or
-lint. Run only static checks and a script-disabled lockfile audit:
+Before local execution, review source and lockfile changes, package scripts,
+dependency provenance, and credentials available to the process. In a fresh
+isolated workspace, run the complete verification sequence:
 
 ```bash
-npm audit --package-lock-only --ignore-scripts
+npm ci
+npm audit
+npm run build
+npm test
+npm run lint
 git diff --check
 ```
 
-Review the complete history-gate script, record its SHA256 outside repository
-content, and obtain explicit execution approval before running that exact
-reviewed script after a commit:
+Review the complete history-gate script and record its SHA256 before running it
+after a commit:
 
 ```bash
 bash .github/scripts/verify-public-history.sh HEAD^
@@ -44,10 +48,10 @@ bash .github/scripts/verify-public-history.sh HEAD^
 
 ## Runtime Verification
 
-Normal `npm ci`, runtime audit, build, tests, and lint run only in the approved
-GitHub-hosted pull-request CI. The workflow uses no configured secrets,
-persists no checkout credentials, and has read-only repository permissions.
-Every required check must pass before merge.
+The GitHub-hosted pull-request CI independently repeats install, audit, build,
+tests, and lint. The workflow uses no configured secrets, persists no checkout
+credentials, and has read-only repository permissions. Every required check
+must pass before merge.
 
 ## Commit Identity
 
