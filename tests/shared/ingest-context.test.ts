@@ -381,7 +381,7 @@ describe('wiki_ingest_with_context MCP tool', () => {
     // Initialise wiki structure
     await mkdir(join(tempDir, 'wiki'), { recursive: true });
     await mkdir(join(tempDir, 'wiki', 'sources'), { recursive: true });
-    await mkdir(join(tempDir, 'sources'), { recursive: true });
+    await mkdir(join(tempDir, 'raw'), { recursive: true });
     await writeFile(
       join(tempDir, 'wiki', 'index.md'),
       '---\nentries: []\n---\n# Wiki Index\n',
@@ -397,7 +397,7 @@ describe('wiki_ingest_with_context MCP tool', () => {
   });
 
   it('handles wiki_ingest_with_context call', async () => {
-    const sourceFile = join(tempDir, 'sources', 'mcp-test.md');
+    const sourceFile = join(tempDir, 'raw', 'mcp-test.md');
     await writeFile(
       sourceFile,
       '# MCP Test\n\nTesting the MCP tool integration.',
@@ -405,7 +405,7 @@ describe('wiki_ingest_with_context MCP tool', () => {
 
     const resultStr = await handleWriteToolCall(
       'wiki_ingest_with_context',
-      { sourcePath: sourceFile },
+      { sourcePath: 'mcp-test.md' },
       tempDir,
     );
 
@@ -419,12 +419,12 @@ describe('wiki_ingest_with_context MCP tool', () => {
   });
 
   it('supports dryRun parameter', async () => {
-    const sourceFile = join(tempDir, 'sources', 'dry.md');
+    const sourceFile = join(tempDir, 'raw', 'dry.md');
     await writeFile(sourceFile, '# Dry\n\nDry run test.');
 
     const resultStr = await handleWriteToolCall(
       'wiki_ingest_with_context',
-      { sourcePath: sourceFile, dryRun: true },
+      { sourcePath: 'dry.md', dryRun: true },
       tempDir,
     );
 
@@ -433,20 +433,20 @@ describe('wiki_ingest_with_context MCP tool', () => {
   });
 
   it('supports force parameter', async () => {
-    const sourceFile = join(tempDir, 'sources', 'force.md');
+    const sourceFile = join(tempDir, 'raw', 'force.md');
     await writeFile(sourceFile, '# Force\n\nForce re-ingest test.');
 
     // First ingest
     await handleWriteToolCall(
       'wiki_ingest_with_context',
-      { sourcePath: sourceFile },
+      { sourcePath: 'force.md' },
       tempDir,
     );
 
     // Second ingest with force
     const resultStr = await handleWriteToolCall(
       'wiki_ingest_with_context',
-      { sourcePath: sourceFile, force: true },
+      { sourcePath: 'force.md', force: true },
       tempDir,
     );
 

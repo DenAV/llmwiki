@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'node:path';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -510,10 +510,8 @@ describe('MCP Server — Write Tools (InMemoryTransport)', () => {
   // -----------------------------------------------------------------------
 
   it('wiki_ingest_with_context returns enhanced result', async () => {
-    // Use the absolute path so ingestWithContext can resolve it correctly
-    const absSourcePath = join(wikiRoot, 'raw', 'test-source.txt');
     const { parsed } = await callTool(client, 'wiki_ingest_with_context', {
-      sourcePath: absSourcePath,
+      sourcePath: 'test-source.txt',
     });
     const result = parsed as Record<string, unknown>;
 
@@ -737,10 +735,39 @@ describe('MCP Server — Error Cases', () => {
 
   it('wiki_ingest_with_context rejects path traversal', async () => {
     const { isError, text } = await callTool(client, 'wiki_ingest_with_context', {
-      sourcePath: '../../../etc/passwd',
+      sourcePath: '../outside.txt',
     });
     expect(isError).toBe(true);
-    expect(text).toContain('Error');
+    expect(text).toContain('Path traversal detected');
+  });
+
+  it('wiki_ingest_with_context does not resolve process-root paths', async () => {
+    const secret = 'synthetic-secret-value';
+    await writeFile(join(wikiRoot, '.env'), secret);
+
+    const { isError, text } = await callTool(client, 'wiki_ingest_with_context', {
+      sourcePath: '.env',
+    });
+
+    expect(isError).toBe(true);
+    expect(text).toContain('Source file is unavailable under raw/');
+    expect(text).not.toContain(secret);
+  });
+
+  it('wiki_ingest_with_context rejects symlinks that escape raw', async () => {
+    const secret = 'synthetic-outside-content';
+    const outsideDir = join(wikiRoot, 'outside');
+    await mkdir(outsideDir);
+    await writeFile(join(outsideDir, 'secret.txt'), secret);
+    await symlink(outsideDir, join(rawDir, 'outside-link'), 'junction');
+
+    const { isError, text } = await callTool(client, 'wiki_ingest_with_context', {
+      sourcePath: 'outside-link/secret.txt',
+    });
+
+    expect(isError).toBe(true);
+    expect(text).toContain('Source file must resolve within raw/');
+    expect(text).not.toContain(secret);
   });
 });
 
