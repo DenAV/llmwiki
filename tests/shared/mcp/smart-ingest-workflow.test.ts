@@ -166,7 +166,7 @@ describe('MCP Server — Smart Ingest Workflow', () => {
     const { parsed: ingestParsed, isError: ingestError } = await callTool(
       client,
       'wiki_ingest_with_context',
-      { sourcePath: join(wikiRoot, 'raw', 'transformer-architecture.md') },
+      { sourcePath: 'transformer-architecture.md' },
     );
     const ingestResult = ingestParsed as Record<string, unknown>;
 
@@ -334,7 +334,7 @@ describe('MCP Server — Smart Ingest Workflow', () => {
     const { parsed: ingestParsed } = await callTool(
       client,
       'wiki_ingest_with_context',
-      { sourcePath: join(wikiRoot, 'raw', 'transformer-architecture.md') },
+      { sourcePath: 'transformer-architecture.md' },
     );
     const ingest = (ingestParsed as Record<string, unknown>)
       .ingest as Record<string, unknown>;
