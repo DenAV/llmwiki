@@ -1,4 +1,5 @@
-import { join } from 'node:path';
+import { realpath } from 'node:fs/promises';
+import { isAbsolute, join, relative, sep } from 'node:path';
 import { readPage, writePage, createEntityPage, createConceptPage, addCrosslinks } from '../wiki.js';
 import { slugify } from '../utils.js';
 import { readIndex, writeIndex, updateIndexEntry } from '../index-ops.js';
@@ -194,7 +195,7 @@ export const WRITE_TOOLS: ToolDefinition[] = [
         sourcePath: {
           type: 'string',
           description:
-            'Path to the source file to ingest (relative to project root)',
+            'Path to the source file to ingest (relative to raw/)',
         },
         dryRun: {
           type: 'boolean',
@@ -525,11 +526,34 @@ export async function handleWriteToolCall(
     case 'wiki_ingest_with_context': {
       const sourcePath = requireString(args, 'sourcePath');
       validateLength(sourcePath, 'sourcePath', MAX_PATH_LENGTH);
-      // Validate source path stays within project root
-      assertWithinDir(wikiRoot, sourcePath);
+      if (isAbsolute(sourcePath)) {
+        throw new Error("'sourcePath' must be relative to raw/");
+      }
+
+      const rawDir = join(wikiRoot, 'raw');
+      const candidatePath = assertWithinDir(rawDir, sourcePath);
+      let canonicalRawDir: string;
+      let canonicalSourcePath: string;
+      try {
+        [canonicalRawDir, canonicalSourcePath] = await Promise.all([
+          realpath(rawDir),
+          realpath(candidatePath),
+        ]);
+      } catch {
+        throw new Error('Source file is unavailable under raw/');
+      }
+      const sourceRelativePath = relative(canonicalRawDir, canonicalSourcePath);
+      if (
+        sourceRelativePath === '..' ||
+        sourceRelativePath.startsWith(`..${sep}`) ||
+        isAbsolute(sourceRelativePath)
+      ) {
+        throw new Error('Source file must resolve within raw/');
+      }
+
       const dryRun = args.dryRun === true;
       const force = args.force === true;
-      const result = await ingestWithContext(sourcePath, wikiRoot, dryRun, force);
+      const result = await ingestWithContext(canonicalSourcePath, wikiRoot, dryRun, force);
       return JSON.stringify(result);
     }
 
